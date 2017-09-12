@@ -1,0 +1,25 @@
+// $Id$
+
+/**
+* Valid permissions for this module
+* @return array An array of valid permissions for the onthisdate module
+*/
+function stayafterlogout_perm() {
+  return array('Allow user to stay on the same page after logout');
+} // function stayafterlogout_perm()
+
+/**
+* Re-aim the user to the same page after logout
+* no @return array. This just does stuff.
+*/
+
+
+function stayafterlogout_user($op, &$edit, &$account, $category = NULL) {
+  global $user;
+
+  if ($op == 'logout') {
+    // Load the anonymous user
+    $user = drupal_anonymous_user();
+    drupal_goto(referer_uri());
+  }
+} // function stayafterlogout_user()

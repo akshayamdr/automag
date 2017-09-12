@@ -245,14 +245,14 @@
  * @endcode
  */
 $databases = array (
-  'default' => 
+  'default' =>
   array (
-    'default' => 
+    'default' =>
     array (
-      'database' => 'automag',
-      'username' => 'akshayamdr@central-database',
-      'password' => 'Hotmail@9841',
-      'host' => 'central-database.mysql.database.azure.com',
+      'database' => '[database_name]',
+      'username' => '[database_username]', //for php hosted db, root
+      'password' => '[database_password]', //for php hosted db, root
+      'host' => '[database_host]', //eg localhost
       'port' => '',
       'driver' => 'mysql',
       'prefix' => '',
@@ -290,7 +290,7 @@ $update_free_access = FALSE;
  *   $drupal_hash_salt = file_get_contents('/home/example/salt.txt');
  *
  */
-$drupal_hash_salt = 'lVS6IHvtB2lOinU6vuV4Y1ydNRHRMcKbyYinEMBBUL0';
+$drupal_hash_salt = '1b5U4wouZUEC9H4g6TO4gUa42NgeprU6_HdbmBh6u-A';
 
 /**
  * Base URL (optional).

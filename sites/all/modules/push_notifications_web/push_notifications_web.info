@@ -1,0 +1,5 @@
+name = Push Notifications (Pushem.org)
+description = Easy to setup and use push notifications for Drupal
+core = 7.x
+package = Push Notifications
+dependencies[] = rules:rules

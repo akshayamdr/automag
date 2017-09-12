@@ -1,0 +1,213 @@
+<?php
+
+/**
+ * @file
+ * Emrys push notifications module file.
+ */
+
+/**
+ * Implements hook_help().
+ */
+function push_notifications_web_help($path, $arg) {
+  if ($path == 'admin/help#push_notifications_web') {
+    return t('Push notifications allows site adminitrators to to create rules to send push (desktop) notifications of any rules events.');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function push_notifications_web_menu() {
+  $items = array();
+  $items['admin/config/services/push_notifications_web'] = array(
+    'title' => 'Push Notifications',
+    'description' => 'Configuration for the Push Notifications module API',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array(
+      'push_notifications_web_form',
+    ),
+    'access arguments' => array(
+      'administer rule configurations',
+    ),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+/**
+ * Form builder; Build the Push Notifications settings forms.
+ */
+function push_notifications_web_form($form, &$form_state) {
+  $form['push_notifications_web_UID'] = array(
+    '#type' => 'textfield',
+    '#default_value' => variable_get('push_notifications_web_UID', NULL),
+    '#title' => t('Pushem.org User ID'),
+    '#size' => 40,
+    '#maxlength' => 120,
+    '#required' => TRUE,
+    '#description' => t('Get PushEm user ID after registarations on <a href="https://pushem.org" target="_blank">PushEm</a>'),
+  );
+
+  $form['push_notifications_web_API'] = array(
+    '#type' => 'textfield',
+    '#default_value' => variable_get('push_notifications_web_API', NULL),
+    '#title' => t('Pushem.org User API Secret key'),
+    '#required' => TRUE,
+    '#description' => t('Get PushEm user API secret key after registarations on <a href="https://pushem.org" target="_blank">PushEm</a>'),
+  );
+
+  if (variable_get('push_notifications_web_UID', NULL) != NULL && variable_get('push_notifications_web_API', NULL) != NULL) {
+    $url = 'https://pushem.org/api/user/get_license/?uid=' . variable_get("push_notifications_web_UID", NULL) . '&key=' . variable_get("push_notifications_web_API", NULL);
+    $result = file_get_contents($url, FALSE);
+    if (!empty($result)) {
+      drupal_set_message(t('Your current License on <a href="https://pushem.org" target="_blank">PushEm</a> is'));
+      print ' ' . $result;
+      drupal_set_message(t('. Improve your license <a href="https://pushem.org/?q=pricing" target="_blank">HERE</a>'));
+      $url = 'https://pushem.org/api/sources/get_all/?uid=' . variable_get("push_notifications_web_UID", NULL) . '&key=' . variable_get("push_notifications_web_API", NULL);
+      $result = file_get_contents($url, FALSE);
+      if (!empty($result)) {
+        $result = json_decode($result);
+        foreach ($result as $value) {
+          $push_notifications_web_options[$value->id] = $value->domain;
+        }
+        $form['push_notifications_web_SOURCE'] = array(
+          '#type' => 'select',
+          '#title' => t('Select SOURCE'),
+          '#options' => $push_notifications_web_options,
+          '#default_value' => variable_get('push_notifications_web_SOURCE', NULL),
+          '#required' => TRUE,
+          '#description' => t('Choose SOURCE created on <a href="https://pushem.org" target="_blank">PushEm</a>'),
+        );
+        $form['push_notifications_web_SHOWWIDGET'] = array(
+          '#type' => 'select',
+          '#title' => t('Select SHOW WIDGET'),
+          '#options' => array(
+            0 => t('Yes'),
+            1 => t('No'),
+          ),
+          '#default_value' => variable_get('push_notifications_web_SHOWWIDGET', NULL),
+          '#description' => t('Choose SHOW WIDGET STATUS (for https only, with mode "auto")'),
+        );
+      }
+      else {
+        drupal_set_message(t('Create SOURCE on <a href="https://pushem.org" target="_blank">PushEm</a>'), 'error');
+      }
+    }
+    else {
+      drupal_set_message(t('No account on <a href="https://pushem.org" target="_blank">PushEm</a> with such data'), 'error');
+    }
+
+    if (variable_get('push_notifications_web_SOURCE', NULL) != NULL && variable_get('push_notifications_web_UID', NULL) != NULL && variable_get('push_notifications_web_API', NULL) != NULL) {
+      $url = 'https://pushem.org/api/sources/get_by_id/?uid=' . variable_get('push_notifications_web_UID', NULL) . '&key=' . variable_get('push_notifications_web_API', NULL) . '&source=' . variable_get('push_notifications_web_SOURCE', NULL);
+      $result = file_get_contents($url, FALSE);
+      if (!empty($result)) {
+        $result = json_decode($result);
+        $token_url = 'https://pushem.org/api/user/get_token/?uid=' . variable_get('push_notifications_web_UID', NULL) . '&key=' . variable_get('push_notifications_web_API', NULL) . '&source=' . variable_get('push_notifications_web_SOURCE', NULL);
+        $token = file_get_contents($token_url, FALSE);
+        variable_set('push_notifications_web_TOKEN', $token);
+        variable_set('push_notifications_web_DOMAIN', $result[0]->domain);
+        variable_set('push_notifications_web_SUBDOMAIN', $result[0]->subdomain);
+        variable_set('push_notifications_web_GOOGLID', $result[0]->google_id);
+        variable_set('push_notifications_web_GCMAPI', $result[0]->gcm_api);
+        variable_set('push_notifications_web_TYPE', $result[0]->type);
+        variable_set('push_notifications_web_MODE', $result[0]->mode);
+      }
+    }
+  }
+  return system_settings_form($form);
+}
+
+/**
+ * Form builder; Push Notifications confirmation form.
+ */
+function push_notifications_web_confirm_form($form, &$form_state, $uid) {
+  $form['account'] = array(
+    '#type' => 'value',
+    '#value' => user_load($uid),
+  );
+  return confirm_form($form, t('Are you sure you want to save Push Notifications configuration?'), t('Save Config'), t('Cancel'));
+}
+
+/**
+ * Page builder; Push Notifications page builder.
+ */
+function push_notifications_web_page_build(&$page) {
+  global $user;
+  $path = current_path();
+  if (path_is_admin($path)) {
+    // Do nothing.
+  }
+  else {
+    $domain = variable_get('push_notifications_web_DOMAIN', NULL);
+    if ($domain != NULL) {
+      if (variable_get('push_notifications_web_TYPE', NULL) == 0) {
+        if ($user->uid > 0) {
+          $page['#attached']['js'][] = array(
+            'data' => 'https://pushem.org/widget/widget.js?token=' . variable_get("push_notifications_web_TOKEN", NULL) . '&site_id=' . $user->uid,
+            'type' => 'external',
+          );
+        }
+        else {
+          $page['#attached']['js'][] = array(
+            'data' => 'https://pushem.org/widget/widget.js?token=' . variable_get("push_notifications_web_TOKEN", NULL),
+            'type' => 'external',
+          );
+        }
+      }
+      if (variable_get('push_notifications_web_TYPE', NULL) == 1) {
+        $manifest_file = '/' . drupal_get_path('module', 'push_notifications_web') . '/js/sdk/manifest.json.php';
+        $element = array(
+          '#tag' => 'link',
+          '#attributes' => array(
+            'href' => $manifest_file,
+            'rel' => 'manifest',
+          ),
+        );
+        drupal_add_html_head($element, 'pushem_mainfest');
+        $token = variable_get("push_notifications_web_TOKEN", NULL);
+        $showwidget = variable_get("push_notifications_web_SHOWWIDGET", NULL);
+        if ($user->uid > 0) {
+          if ($showwidget != 1) {
+            $widget_file = 'https://pushem.org/widget/widget.js?token=' . $token . '&site_id=' . $user->uid;
+            $page['#attached']['js'][] = array(
+              'data' => $widget_file,
+              'type' => 'external',
+            );
+          }
+          $init_file = '/' . drupal_get_path('module', 'push_notifications_web') . '/js/sdk/init.js?token=' . $token . '&site_id=' . $user->uid;
+          $page['#attached']['js'][] = array(
+            'data' => $init_file,
+            'type' => 'file',
+          );
+        }
+        else {
+          if ($showwidget != 1) {
+            $widget_file = 'https://pushem.org/widget/widget.js?token=' . $token;
+            $page['#attached']['js'][] = array(
+              'data' => $widget_file,
+              'type' => 'external',
+            );
+          }
+          $init_file = '/' . drupal_get_path('module', 'push_notifications_web') . '/js/sdk/init.js?token=' . $token;
+          $page['#attached']['js'][] = array(
+            'data' => $init_file,
+            'type' => 'file',
+          );
+        }
+      }
+    }
+  }
+  return $page;
+}
+
+/**
+ * Get module settings.
+ */
+function push_notifications_web_get_settings() {
+  $array['pushem_uid'] = variable_get('push_notifications_web_UID', NULL);
+  $array['pushem_key'] = variable_get('push_notifications_web_API', NULL);
+  $array['pushem_source'] = variable_get('push_notifications_web_SOURCE', NULL);
+  if (!empty($array)) {
+    return $array;
+  }
+}

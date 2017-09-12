@@ -1,0 +1,5 @@
+; $Id$
+name = Stay After Logout
+description = When enabled, it will leave the user on the same page the logout click was accessed after a user logout process is complete.
+core = 7.x
+package = "Authentication"
